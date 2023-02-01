@@ -1,0 +1,141 @@
+-- Set (1) Question (1): Within family movie categories, which category is the 
+-- most favourable given the rental count ? 
+
+
+SELECT   film.title Title , category.name Category , COUNT(rental.rental_date) Rental_Count
+FROM category
+JOIN film_category
+ON category.category_id = film_category.category_id
+JOIN film
+ON film.film_id = film_category.film_id
+JOIN inventory
+ON inventory.film_id = film.film_id
+JOIN rental
+ON rental.inventory_id = inventory.inventory_id
+WHERE category.name IN ('Animation','Children','Classics','Music','Family','Comedy')
+GROUP BY 1,2
+ORDER BY 3 DESC
+
+
+
+
+
+
+-- Set (1) Question (2): Which of the family movie categories has the highest
+-- rental duration ?
+
+
+WITH T1 AS  (SELECT film.title Title , category.name Category , film.rental_duration
+FROM category
+JOIN film_category
+ON category.category_id = film_category.category_id
+JOIN film
+ON film.film_id = film_category.film_id
+WHERE category.name IN ('Animation','Children','Classics','Music','Family','Comedy')
+ORDER BY 2),
+
+T2 AS (SELECT title, category, rental_duration,max(rental_duration),
+Ntile (4) OVER ( ORDER BY rental_duration) AS rent_dur_quartile
+FROM T1
+GROUP BY 1,2,3               
+ORDER BY 1)
+
+SELECT title, category, rental_Duration, rent_dur_quartile
+FROM T2
+
+
+
+
+
+-- Set (2) Question (1): Which month of the year has the most rentals for each
+-- store ?
+
+
+SELECT   inventory.store_id, DATE_PART('month',rental.rental_date) rental_month,
+DATE_PART('year',rental.rental_date) rental_year, 
+COUNT (rental.rental_date) rental_count
+FROM rental
+JOIN inventory
+ON rental.inventory_id = inventory.inventory_id
+GROUP BY 1,2,3
+ORDER BY 1,3
+
+
+
+
+
+
+-- Set (2) Question (2): Determine the highest paying customer for each month
+-- and the amount they paid for the given month.
+
+
+WITH T1 AS (SELECT customer.customer_id cusid,CONCAT(customer.first_name, ' ' , customer.last_name) full_name, DATE_TRUNC('month',payment.payment_date) month_pay, payment.amount
+
+FROM customer
+JOIN payment
+ON payment.customer_id = customer.customer_id
+ORDER BY 1),
+
+T2 AS (SELECT cusid, full_name, month_pay, amount,
+COUNT(amount)  AS count_amount, SUM(amount)
+FROM T1
+GROUP BY 1,2,3,4
+ORDER BY 2,3),
+
+T3 AS (SELECT  full_name , month_pay,  count_amount, sum
+FROM T2
+ORDER BY 1),
+
+T4 AS (SELECT full_name, month_pay ,SUM(count_amount) paycount , SUM(sum) paysum
+FROM T3
+GROUP BY 1,2
+ORDER BY  1 , 4 ),
+
+ T5 AS (SELECT full_name ,month_pay,paycount, Max(paysum)
+FROM T4
+WHERE month_pay = '2007-02-01T00:00:00.000Z'
+GROUP BY 1,2,3
+ORDER BY 4 DESC
+LIMIT 10),
+
+T6 AS (SELECT full_name ,month_pay,paycount, Max(paysum)
+FROM T4
+WHERE month_pay = '2007-03-01T00:00:00.000Z'
+GROUP BY 1,2,3
+ORDER BY 4 DESC
+LIMIT 10),
+
+T7 AS (SELECT full_name ,month_pay,paycount, Max(paysum)
+FROM T4
+WHERE month_pay = '2007-04-01T00:00:00.000Z'
+GROUP BY 1,2,3
+ORDER BY 4 DESC
+LIMIT 10),
+
+T8 AS (SELECT full_name ,month_pay,paycount, Max(paysum)
+FROM T4
+WHERE month_pay = '2007-05-01T00:00:00.000Z'
+GROUP BY 1,2,3
+ORDER BY 4 DESC
+LIMIT 10),
+
+
+T9 AS (SELECT *
+FROM T5
+Union All
+SELECT *
+FROM T6
+Union all
+SELECT *
+FROM T7
+Union all
+SELECT *
+FROM T8)
+
+SELECT *
+FROM T9
+ORDER BY 2,4 DESC
+
+
+
+
